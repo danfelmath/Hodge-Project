@@ -1,4 +1,6 @@
-LIB "solve.lib"; LIB "algebra.lib";  LIB "foliation.lib"; LIB "matrix.lib";
+LIB "solve.lib"; LIB "algebra.lib";  LIB "foliation.lib"; LIB "matrix.lib"; 
+LIB "ellipticcovers.lib"; //It is used for permutation: permutate
+LIB "qhmoduli.lib"; // It is used for compute the min of array: Min
 //---------------------------------------------------------------------------
 //---------------------------GENERAL PROCEDURES------------------------------
 //---------------------------------------------------------------------------
@@ -10,10 +12,11 @@ PURPOSE:
     This procedure computes the general polynomial associated to a 
     algebraiccycle. The ideal f=<f1, f2,..., fn+1> defines a 
     complete intersection in the projective hypersurface given by F, 
-    (e.g. Periods of Complete Intersection Algebraic Cycles, R. Villaflor) 
+    (e.g. [1]) 
 RETURN:
      The associated polynomial to the complete intersection given by f, 
-     in the smooth hypersurface {F=0}.
+     in the smooth hypersurface {F=0}. And the polynomials gi, such that
+                           Sum fi*gi=F.
 SEE ALSO:
 
 EXAMPLE: 
@@ -45,7 +48,10 @@ for (i=2;i<=2*n+2;i=i+2)
 poly P=det(M);
 }
 }
-return(P);
+list Out;
+Out[1]=P;
+Out[2]=G;
+return(Out);
 }
 example
 {"EXAMPLE:"; echo=2;     
@@ -53,19 +59,354 @@ example
     int n=2;
     int i;
 
-    ring R=(0,c),(x(0..2*n+1)),dp;
-    poly cp=cyclotomic(2*d); cp=subst(cp,x(0),c);
+    ring R=(0,l),(x(0..2*n+1)),dp;
+    poly cp=cyclotomic(2*d); cp=subst(cp,x(0),l);
     minpoly=number(cp); //Polinomio ciclotomico
 
     poly F;
     for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
     print(F);
     ideal f;
-    for (i=1;i<=n+1;i=i+1) {f=f, x(2*i-2)-c*x(2*i-1);}
+    for (i=1;i<=n+1;i=i+1) {f=f, x(2*i-2)-l*x(2*i-1);}
     f=std(f);
     print(f);
-    poly P=PolyAlgCycle(F,f,n);
+    list P=PolyAlgCycle(F,f,n);
     print(P);
 }
 //---------------------------------------------------------------------------
+proc CupC (poly F, poly P, poly Q, int n)
+"USAGE:
+     CupC (poly_express, poly_express, poly_express, int_express, int_express)
+PURPOSE: 
+     Compute the unique number c such that P.Q=c Hess(F) mod (JF). 
+     n is the dimension of the hypersurface given by F.
+RETURN:
+     The number c, in the Prop 5 of [1].
+SEE ALSO:
+
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+number c=number(NF(P*Q,std(jacob(F)))/NF(det(jacob(jacob(F))),std(jacob(F))));
+//leadcoef(NF(P1*P2,std(jacob(F))))/leadcoef(NF(det(jacob(jacob(F))),std(jacob(F))));
+
+return(c);
+}
+example
+{"EXAMPLE:"; echo=2;     
+    int n=2;
+    int i;
+
+    ring R=(0,l),(x(0..2*n+1)),dp;
+    poly cp=cyclotomic(2*d); cp=subst(cp,x(0),l);
+    minpoly=number(cp); //Polinomio ciclotomico
+
+    poly F;
+    for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
+    print(F);
+    
+    ideal f1;
+    for (i=1;i<=n+1;i=i+1) {f1=f1, x(2*i-2)-l*x(2*i-1);}
+    f1=std(f1);
+    print(f1);
+
+    ideal f2;
+    for (i=1;i<=n+1;i=i+1) {f2=f2, x(2*i-2)-l^11*x(2*i-1);}
+    f2=std(f2);
+    print(f2);
+
+    list O1=PolyAlgCycle(F,f1,n);
+    poly P1=O1[1];
+    list O2=PolyAlgCycle(F,f2,n);
+    poly P2=O2[1];
+    
+    number c=CupC(F,P1,P2,n);
+    print(c);
+
+    //Test
+    poly PR=P1*P2-c*det(jacob(jacob(F)));
+    NF(PR,std(jacob(F)));
+}
+//---------------------------------------------------------------------------
+proc Periods (poly F, poly P, poly Q, int n)
+"USAGE:
+     Periods (poly_express, poly_express, poly_express, int_express, int_express)
+PURPOSE: 
+     Compute the periods given by Proposition 5 in [1]. 
+     n is the dimension of the hypersurface given by F.
+RETURN:
+     Period number  given by Proposition 5 in [1]. 
+SEE ALSO:
+    CupC, Intersection   
+EXAMPLE: 
+     example Periods; shows an example
+"
+{
+number c=CupC(F,P,Q,n);
+int d=deg(F);
+number Period=-c*(d-1)^(2*n+2)*d/(factorial(n));
+return(Period);
+}
+example
+{"EXAMPLE:"; echo=2;     
+    
+}
+//---------------------------------------------------------------------------
+proc Intersection (poly F, poly Pd, poly Pm, int n,  int d1, int d2)
+"USAGE:
+     Intersection (poly_express, ideal_express, ideal_express, int_express, int_express)
+PURPOSE: 
+     This procedure computes the intersection number of two algebraic cycles with associated
+     polynomials Pd and Pm in the hypersurface X:={F=0}. 
+     The number n is the dimension of X.
+     dm is the degree  associated to M, and dd is the degree associated to D.
+RETURN:
+     Intersection number given by Corollary 2 in [1].
+SEE ALSO:
+     CupC, Periods   
+EXAMPLE: 
+     example Intersection; shows an example
+"
+{
+number c=CupC(F,Pd,Pm,n);
+int d=deg(F);
+number I=number(d1)*number(d2)/d-(c*(d-1)^(2*n+2))/d;
+return(I)
+}
+example
+{"EXAMPLE:"; echo=2;
+
+}
+//---------------------------------------------------------------------------
+proc PeriodMatrix (poly F, ideal f, ideal B, int n)
+"USAGE:
+     PeriodMatrix (poly_express, ideal_express, ideal_express, int_express)
+PURPOSE: 
+     Compute the periods matrix of the familiy of polynomials f in the basis B, in the 
+     hypersurface X={F=0}.
+RETURN:
+     Matrix of Periods.
+SEE ALSO:
+     CupC, Periods   
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+int Nr=size(B); // Number of elements in the basis B
+int Nc=size(f); // Number of polynomials in the family f
+matrix MP[Nr][Nc];
+int i; int j;
+for (i=1;i<=Nr;i=i+1)
+{
+     for (j=1;j<=Nc;j=j+1)
+     {
+          MP[i,j]=Periods (F, B[i], f[j], n);
+     }     
+}
+
+return(MP);
+}
+example
+{"EXAMPLE:"; echo=2;     
+    
+}
+//---------------------------------------------------------------------------
+proc IntersecMatrix (poly F, ideal f, ideal g, int n, intvec df, intvec dg)
+"USAGE:
+     IntersecMatrix (poly_express, ideal_express, ideal_express, int_express, intvec_express)
+PURPOSE: 
+     Compute the intersection matrix of the polynomial of the ideal f and the polynomials
+     of the ideal g in the hypersurface X={F=0}.
+RETURN:
+     Intersection matrix.
+SEE ALSO:
+     CupC, Periods, Period   
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+int Nr=size(f); // Number of elements in the basis B
+int Nc=size(g); // Number of polynomials in the family f
+matrix IM[Nr][Nc];
+int i; int j;
+for (i=1;i<=Nr;i=i+1)
+{
+     for (j=1;j<=Nc;j=j+1)
+     {
+          IM[i,j]=Intersection (F, f[i], g[j], n,  df[i], dg[j]);
+     }     
+}
+return(IM);
+}
+example
+{"EXAMPLE:"; echo=2;
+     int n=1;
+     int d=4;
+     ring R=LinAlgCycles (n, d);
+     ideal f=CL; // Associated polynomials to the linear cycles.
+     intvec df;
+     int i;
+     for (i=1;i<=size(f); i=i+1){df[i]=1;} // degrees of linear cycles.
+     poly F; //Fermat variety
+     for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
+
+     matrix IM=IntersecMatrix (F, f, f, n, df,df);
+     rank(IM);       
+}
+//---------------------------------------------------------------------------
+proc KtoVec (int K, int n, int d)
+"USAGE:
+     KtoVec(int_express,int_express,int_express)
+PURPOSE: 
+     This is used to pass a number K to a vector with n digits from 0 to d-1.
+RETURN:
+     The vector a associated to K=an*d^(n-1)+...+a2*2+a1
+SEE ALSO:
+
+EXAMPLE: 
+     example KtoVec; shows an example
+"
+{
+int i;
+intvec a;
+int iaux=K;
+for(i=0; i<=n; i=i+1)
+{
+     a[n-i+1]=iaux div (d^(n-i));
+     iaux=iaux-a[n-i+1]*(d^(n-i));
+}
+return(a);
+
+}
+example
+{"EXAMPLE:"; echo=2;     
+    ring R=0,x,dp;
+    int K=1000;
+    int n=5; int d=7;
+    KtoVec(K,n,d);
+}
+//---------------------------------------------------------------------------
+proc PermLinear (int n)
+"USAGE:
+     PermLinear(int_express,int_express)
+PURPOSE: 
+     This is used to compute the permutations of {0,..,2n+1} used in the description
+     of linear cycles in [2].
+RETURN:
+     A list with the permutation.
+SEE ALSO:
+
+EXAMPLE: 
+     example PermLinear; shows an example
+"
+{
+int i; int j; int k=1;
+int N=2*n+1;
+list L;
+for(i=0; i<=N; i=i+1)
+{
+     L[N-i+1]=i;
+}
+list b=permute(L);
+list Out; 
+int Pr; list aux; // auxilary variables
+int Nb=size(b);
+for (i=1;i<=Nb; i=i+1)
+{    
+     aux =b[i];
+     Pr=0;
+     for (j=1; j<=N+1;j=j+2)
+     {
+               
+          if (b[i][j]==Min(list(aux[j..N+1]))){Pr=Pr+1;}
+     }
+     if (Pr==((N+1) div 2)){Out[k]=b[i]; k=k+1;} 
+}
+return(Out);
+
+}
+example
+{"EXAMPLE:"; echo=2;     
+    ring R=0,x,dp;
+    int n=1; 
+    PermLinear(n);
+}
+//---------------------------------------------------------------------------
+proc LinAlgCycles (int n, int d)
+"USAGE:
+     PeriodMatriz (poly_express, ideal_express, ideal_express, int_express)
+PURPOSE: 
+     Compute the periods matrix of the familiy of polynomials f in the basis B, in the 
+     hypersurface X={F=0}.
+RETURN:
+     Matrix of Periods.
+SEE ALSO:
+     CupC, Periods   
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+//0) Fristly, we define a ring with the 2-d roots of unity as parameter
+int i; int j; int k;
+ring R=(0,l),(x(0..2*n+1)),dp;
+poly cp=cyclotomic(2*d); cp=subst(cp,x(0),l);
+minpoly=number(cp); //Polinomio ciclotomico
+poly F; //Fermat variety
+for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
+
+int N=2*n+1;
+
+//1) Define all posible tuples a=(a1,...,a2n+1)
+int Na=d^(N);
+
+// 2) Define the permutation
+list b=PermLinear(n);
+int Nb=size(b);
+
+// 3) Matrix with of polynomials associated 
+// In the rows we change the a
+// In the columns we change the b
+ideal f;
+int kb; int kbs;
+intvec a;
+matrix M[Na][Nb];
+list P;
+for (i=0;i<=Na-1;i=i+1)
+{
+     for (j=1;j<=Nb;j=j+1)
+     {
+          f=0;
+          for (k=1;k<=n+1;k=k+1) 
+          {
+               kb=int(b[j][2*k-1]); kbs=int(b[j][2*k]);
+               a=KtoVec (i,N,d);  
+               f=f, x(kb)-l^(1+2*a[k])*x(kbs);
+          }
+          f=std(f);
+          P=PolyAlgCycle(F,f,n);
+          M[i+1,j]=P[1];
+     }
+}
+// The matrix as a list:
+ideal CL;
+k=1;
+for (i=1; i<=Na; i=i+1)
+{
+     for (j=1; j<=Nb; j=j+1){CL[k]=M[i,j]; k=k+1;}
+}
+export(CL);
+export(M);
+return(R);
+
+}
+example
+{"EXAMPLE:"; echo=2;     
+     ring R=LinAlgCycles (1, 3);
+     print(IM);
+}
+//---------------------------------------------------------------------------
+//References
+// [1] Periods of Complete Intersection Algebraic Cycles, R. Villaflor
+// [2] Integral Hodge conjecture for Fermat varieties, E. Aljovin, H. Movasati, R. Villaflor
 
