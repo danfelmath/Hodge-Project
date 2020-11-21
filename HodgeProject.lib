@@ -1,4 +1,4 @@
-LIB "solve.lib"; LIB "algebra.lib";  LIB "foliation.lib"; LIB "matrix.lib"; 
+LIB "general.lib"; LIB "solve.lib"; LIB "algebra.lib";  LIB "foliation.lib"; LIB "matrix.lib"; 
 LIB "ellipticcovers.lib"; //It is used for permutation: permutate
 LIB "qhmoduli.lib"; // It is used for compute the min of array: Min
 //---------------------------------------------------------------------------
@@ -179,89 +179,13 @@ example
 
 }
 //---------------------------------------------------------------------------
-proc PeriodMatrix (poly F, ideal f, ideal B, int n)
-"USAGE:
-     PeriodMatrix (poly_express, ideal_express, ideal_express, int_express)
-PURPOSE: 
-     Compute the periods matrix of the familiy of polynomials f in the basis B, in the 
-     hypersurface X={F=0}.
-RETURN:
-     Matrix of Periods.
-SEE ALSO:
-     CupC, Periods   
-EXAMPLE: 
-     example CupC; shows an example
-"
-{
-int Nr=size(B); // Number of elements in the basis B
-int Nc=size(f); // Number of polynomials in the family f
-matrix MP[Nr][Nc];
-int i; int j;
-for (i=1;i<=Nr;i=i+1)
-{
-     for (j=1;j<=Nc;j=j+1)
-     {
-          MP[i,j]=Periods (F, B[i], f[j], n);
-     }     
-}
-
-return(MP);
-}
-example
-{"EXAMPLE:"; echo=2;     
-    
-}
-//---------------------------------------------------------------------------
-proc IntersecMatrix (poly F, ideal f, ideal g, int n, intvec df, intvec dg)
-"USAGE:
-     IntersecMatrix (poly_express, ideal_express, ideal_express, int_express, intvec_express)
-PURPOSE: 
-     Compute the intersection matrix of the polynomial of the ideal f and the polynomials
-     of the ideal g in the hypersurface X={F=0}.
-RETURN:
-     Intersection matrix.
-SEE ALSO:
-     CupC, Periods, Period   
-EXAMPLE: 
-     example CupC; shows an example
-"
-{
-int Nr=size(f); // Number of elements in the basis B
-int Nc=size(g); // Number of polynomials in the family f
-matrix IM[Nr][Nc];
-int i; int j;
-for (i=1;i<=Nr;i=i+1)
-{
-     for (j=1;j<=Nc;j=j+1)
-     {
-          IM[i,j]=Intersection (F, f[i], g[j], n,  df[i], dg[j]);
-     }     
-}
-return(IM);
-}
-example
-{"EXAMPLE:"; echo=2;
-     int n=1;
-     int d=4;
-     ring R=LinAlgCycles (n, d);
-     ideal f=CL; // Associated polynomials to the linear cycles.
-     intvec df;
-     int i;
-     for (i=1;i<=size(f); i=i+1){df[i]=1;} // degrees of linear cycles.
-     poly F; //Fermat variety
-     for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
-
-     matrix IM=IntersecMatrix (F, f, f, n, df,df);
-     rank(IM);       
-}
-//---------------------------------------------------------------------------
 proc KtoVec (int K, int n, int d)
 "USAGE:
      KtoVec(int_express,int_express,int_express)
 PURPOSE: 
      This is used to pass a number K to a vector with n digits from 0 to d-1.
 RETURN:
-     The vector a associated to K=an*d^(n-1)+...+a2*2+a1
+     The intvec (vector) associated to K=an*d^(n-1)+...+a2*2+a1
 SEE ALSO:
 
 EXAMPLE: 
@@ -335,16 +259,20 @@ example
 //---------------------------------------------------------------------------
 proc LinAlgCycles (int n, int d)
 "USAGE:
-     PeriodMatriz (poly_express, ideal_express, ideal_express, int_express)
+     LinAlgCycles (int_expression,int_expression)
 PURPOSE: 
-     Compute the periods matrix of the familiy of polynomials f in the basis B, in the 
-     hypersurface X={F=0}.
+     Compute the polynomials associated to the basis for the Linear cycles 
+     in Fermat variety.
 RETURN:
-     Matrix of Periods.
+     The ring where the polynomials are defined.
+     The matrix M: The row i is associated with the a corresponding to KtoVec(i,n,d)
+                   The column j is associated with  the j-th permutation in PermLinear(n)
+                   In the position (i,j) of M, there is the polinomial associated to the this (a,b)
+     The list CL are the same elements that in M, but in list. For a fixed row with put toheter the columns.
 SEE ALSO:
-     CupC, Periods   
+     KtoVec, PermLinear.  
 EXAMPLE: 
-     example CupC; shows an example
+     example LinAlgCycles; shows an example
 "
 {
 //0) Fristly, we define a ring with the 2-d roots of unity as parameter
@@ -403,9 +331,149 @@ return(R);
 example
 {"EXAMPLE:"; echo=2;     
      ring R=LinAlgCycles (1, 3);
-     print(IM);
+     print(CL);
 }
 //---------------------------------------------------------------------------
+proc BasisChFermat (int n, int d)
+"USAGE:
+     BasisChFermat (int_expression, int_expression)
+PURPOSE: 
+     Compute a  basis B, for the cohomology of the Fermat variety of dimension n
+     and degree d. 
+RETURN:
+     The ring where the polynomials are defined.
+     List B of a basis.
+SEE ALSO:
+     LinAlgCycles   
+EXAMPLE: 
+     example BasisChFermat; shows an example
+"
+{
+int P=(n+1)*(d-2);
+ring R=0,(x(0..2*n+1)),dp;
+int N=2*n+1;
+int Na=d^(N+1)-1;
+int i; intvec j; int k; int h=1; intvec ind;
+intvec a;
+ideal B;
+for (i=0;i<=Na-1;i=i+1)
+{
+     a=KtoVec (i,N,d); 
+     if (sum(a)==P)
+     {
+     ind =0;
+     for (j=1; j<=N+1;j=j+1)
+     {
+          if(a[j]<=d-2){ind=ind+1;}    // All coeff have to be less than d-2
+     }
+     if (ind==N+1)
+          {
+          B[h]=1;
+          for (k=1;k<=N+1;k=k+1)
+          {
+               B[h]=B[h]*x(k-1)^a[k];
+          } 
+          h=h+1;
+          }
+     }     
+}
+export(B);
+return(R);
+}
+example
+{"EXAMPLE:"; echo=2;     
+    
+}
+//---------------------------------------------------------------------------
+
+proc IntersecMatrix (poly F, ideal f, ideal g, int n, intvec df, intvec dg)
+"USAGE:
+     IntersecMatrix (poly_express, ideal_express, ideal_express, int_express, intvec_express)
+PURPOSE: 
+     Compute the intersection matrix of the polynomial of the ideal f and the polynomials
+     of the ideal g in the hypersurface X={F=0}.
+RETURN:
+     Intersection matrix.
+SEE ALSO:
+     CupC, Periods, Period   
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+int Nr=size(f); // Number of elements in the basis B
+int Nc=size(g); // Number of polynomials in the family f
+matrix IM[Nr][Nc];
+int i; int j;
+for (i=1;i<=Nr;i=i+1)
+{
+     for (j=1;j<=Nc;j=j+1)
+     {
+          IM[i,j]=Intersection (F, f[i], g[j], n,  df[i], dg[j]);
+     }     
+}
+return(IM);
+}
+example
+{"EXAMPLE:"; echo=2;
+     int n=1;
+     int d=4;
+     ring R=LinAlgCycles (n, d);
+     ideal f=CL; // Associated polynomials to the linear cycles.
+     intvec df;
+     int i;
+     for (i=1;i<=size(f); i=i+1){df[i]=1;} // degrees of linear cycles.
+     poly F; //Fermat variety
+     for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
+
+     matrix IM=IntersecMatrix (F, f, f, n, df,df);
+     rank(IM);       
+}
+//---------------------------------------------------------------------------
+proc PeriodMatrix (poly F, ideal f, ideal B, int n)
+"USAGE:
+     PeriodMatrix (poly_express, ideal_express, ideal_express, int_express)
+PURPOSE: 
+     Compute the periods matrix of the familiy of polynomials f in the basis B, in the 
+     hypersurface X={F=0}.
+RETURN:
+     Matrix of Periods.
+SEE ALSO:
+     CupC, Periods   
+EXAMPLE: 
+     example CupC; shows an example
+"
+{
+int Nr=size(B); // Number of elements in the basis B
+int Nc=size(f); // Number of polynomials in the family f
+matrix MP[Nr][Nc];
+int i; int j;
+for (i=1;i<=Nr;i=i+1)
+{
+     for (j=1;j<=Nc;j=j+1)
+     {
+          MP[i,j]=Periods (F, B[i], f[j], n);
+     }     
+}
+
+return(MP);
+}
+example
+{"EXAMPLE:"; echo=2; 
+     int n=2;
+     int d=3;
+     int i;
+     ring R0=BasisChFermat(n,d);
+     ring R=LinAlgCycles (n, d);
+     poly F; //Fermat variety
+     for (i=0; i<=2*n+1;i=i+1) {F=F+x(i)^d;}
+     ideal B=imap(R0,B); //Basis for the cohomology
+     ideal f=CL;         // Linear cycles
+
+     matrix Per=PeriodMatrix (F, f, B, n);// Period matrix
+     rank(Per);  
+}
+//---------------------------------------------------------------------------
+
 //References
 // [1] Periods of Complete Intersection Algebraic Cycles, R. Villaflor
 // [2] Integral Hodge conjecture for Fermat varieties, E. Aljovin, H. Movasati, R. Villaflor
